@@ -1,6 +1,12 @@
 #[derive(Debug, Copy, Clone)]
-pub enum Error {
-    UnknownError
+pub struct ResistorError {
+    message: String,
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+impl ResistorError {
+    pub fn custom<S: ToString>(message: S) -> Self {
+        Self {
+            message: message.to_string(),
+        }
+    }
+}
