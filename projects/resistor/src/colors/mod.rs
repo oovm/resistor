@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+use crate::ResistorError;
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -79,8 +80,8 @@ impl ResistorColor {
             ResistorColor::Empty => None,
         }
     }
-    pub fn as_tolerance(&self) -> Option<f32> {
-        match self {
+    pub fn as_tolerance(&self) -> Result<f64, ResistorError> {
+        let tolerance = match self {
             ResistorColor::Pink => None,
             ResistorColor::Silver => Some(10.0),
             ResistorColor::Gold => Some(5.0),
@@ -95,6 +96,12 @@ impl ResistorColor {
             ResistorColor::Grey => Some(0.01),
             ResistorColor::White => None,
             ResistorColor::Empty => Some(20.0),
+        };
+        match tolerance.as_tolerance() {
+            Some(s) => { Ok(s) }
+            None => {
+                Err(ResistorError::custom(format!("{} is not a valid tolerance color", self)))
+            }
         }
     }
     pub fn as_tolerance_letter(&self) -> Option<char> {
@@ -115,8 +122,8 @@ impl ResistorColor {
             ResistorColor::Empty => Some('M'),
         }
     }
-    pub fn as_temperature_coefficient(&self) -> Option<f32> {
-        match self {
+    pub fn as_temperature_coefficient(&self) -> Result<f64, ResistorError> {
+        let tc = match self {
             ResistorColor::Pink => None,
             ResistorColor::Silver => None,
             ResistorColor::Gold => None,
@@ -131,6 +138,12 @@ impl ResistorColor {
             ResistorColor::Grey => Some(1.0),
             ResistorColor::White => None,
             ResistorColor::Empty => None,
+        };
+        match tc.as_temperature_coefficient() {
+            Some(s) => { Ok(s) }
+            None => {
+                Err(ResistorError::custom(format!("{} is not a valid temperature coefficient color", self)))
+            }
         }
     }
     pub fn as_temperature_letter(&self) -> Option<char> {
