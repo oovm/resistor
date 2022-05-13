@@ -1,164 +1,103 @@
-use crate::{ResistorError, ResistorColor};
+use crate::{ResistorColor, ResistorError};
+use std::fmt::{Debug, Display, Formatter};
 
+mod display;
+
+/// A resistor.
+#[derive(Copy, Clone)]
 pub struct Resistor {
+    /// The resistance of the resistor in ohms.
     pub resistance: f64,
+    /// The tolerance of the resistor in percent.
     pub tolerance: f64,
+    /// The temperature coefficient of the resistor in ppm/K.
     pub temperature_coefficient: Option<f64>,
 }
 
+/// A builder for a resistor.
+#[derive(Copy, Clone, Debug)]
 pub enum ResistorBuilder {
+    /// A four band resistor.
     FourBand {
+        /// The 1st band, tens digit.
         first: ResistorColor,
+        /// The 2nd band, ones digit.
         second: ResistorColor,
+        /// The 3rd band, multiplier.
         multiplier: ResistorColor,
+        /// The 4th band, tolerance.
         tolerance: ResistorColor,
     },
+    /// A five band resistor.
     FiveBand {
+        /// The 1st band, hundreds digit.
         first: ResistorColor,
+        /// The 2nd band, tens digit.
         second: ResistorColor,
+        /// The 3rd band, ones digit.
         third: ResistorColor,
+        /// The 4th band, multiplier.
         multiplier: ResistorColor,
+        /// The 5th band, tolerance.
         tolerance: ResistorColor,
     },
+    /// A six band resistor.
     SixBand {
+        /// The 1st band, hundreds digit.
         first: ResistorColor,
+        /// The 2nd band, tens digit.
         second: ResistorColor,
+        /// The 3rd band, ones digit.
         third: ResistorColor,
+        /// The 4th band, multiplier.
         multiplier: ResistorColor,
+        /// The 5th band, tolerance.
         tolerance: ResistorColor,
+        /// The 6th band, temperature coefficient.
         temperature_coefficient: ResistorColor,
     },
 }
 
 impl ResistorBuilder {
+    /// Build the resistor.
     pub fn build(&self) -> Result<Resistor, ResistorError> {
         match self {
-            ResistorBuilder::FourBand {
-                first,
-                second,
-                multiplier,
-                tolerance,
-            } => {
-                let base = tens_digits(first, second)?;
-                let resistance = mul_multiplier(base, multiplier)?;
+            ResistorBuilder::FourBand { first, second, multiplier, tolerance } => {
+                let tens = first.as_digit("tens")?;
+                let digit = second.as_digit("ones")?;
+                let base = tens * 10.0 + digit;
+                let multiplier = multiplier.as_multiplier()?;
                 Ok(Resistor {
-                    resistance,
+                    resistance: base * multiplier,
                     tolerance: tolerance.as_tolerance()?,
                     temperature_coefficient: None,
                 })
             }
-            ResistorBuilder::FiveBand {
-                first,
-                second,
-                third,
-                multiplier,
-                tolerance,
-            } => {
-                let tens = tens_digits(second, third)?;
-                let hundreds = add_hundreds_digit(tens, first)?;
-                let resistance = mul_multiplier(hundreds, multiplier)?;
+            ResistorBuilder::FiveBand { first, second, third, multiplier, tolerance } => {
+                let hundreds = first.as_digit("hundreds")?;
+                let tens = second.as_digit("tens")?;
+                let digit = third.as_digit("ones")?;
+                let base = hundreds * 100.0 + tens * 10.0 + digit;
+                let multiplier = multiplier.as_multiplier()?;
                 Ok(Resistor {
-                    resistance,
+                    resistance: base * multiplier,
                     tolerance: tolerance.as_tolerance()?,
                     temperature_coefficient: None,
                 })
             }
-            ResistorBuilder::SixBand {
-                first,
-                second,
-                third,
-                multiplier,
-                tolerance,
-                temperature_coefficient,
-            } => {
-                let first = match first.as_digit() {
-                    Some(s) => { s }
-                    None => {
-                        Err(ResistorError::custom(format!("{} is not a valid hundreds digit", first)))?
-                    }
-                };
-                let second = match second.as_digit() {
-                    Some(s) => { s }
-                    None => {
-                        Err(ResistorError::custom(format!("{} is not a valid tens digit", second)))?
-                    }
-                };
-                let third = match third.as_digit() {
-                    Some(s) => { s }
-                    None => {
-                        Err(ResistorError::custom(format!("{} is not a valid digit", third)))?
-                    }
-                };
-                let multiplier = match multiplier.as_multiplier() {
-                    Some(s) => { s }
-                    None => {
-                        Err(ResistorError::custom(format!("{} is not a valid multiplier", multiplier)))?
-                    }
-                };
-                let resistance = (first * 100.0 + second * 10.0 + third) * multiplier;
-                let tolerance = match tolerance.as_tolerance() {
-                    Some(s) => { s }
-                    None => {
-                        Err(ResistorError::custom(format!("{} is not a valid tolerance", tolerance)))?
-                    }
-                };
-                let temperature_coefficient = temperature_coefficient.as_temperature_coefficient()?;
+            ResistorBuilder::SixBand { first, second, third, multiplier, tolerance, temperature_coefficient } => {
+                let thousands = first.as_digit("thousands")?;
+                let hundreds = second.as_digit("hundreds")?;
+                let tens = third.as_digit("tens")?;
+                let digit = multiplier.as_digit("ones")?;
+                let base = thousands * 1_000.0 + hundreds * 100.0 + tens * 10.0 + digit;
+                let multiplier = temperature_coefficient.as_multiplier()?;
                 Ok(Resistor {
-                    resistance,
-                    tolerance,
-                    temperature_coefficient: Some(temperature_coefficient),
+                    resistance: base * multiplier,
+                    tolerance: tolerance.as_tolerance()?,
+                    temperature_coefficient: None,
                 })
             }
         }
     }
-}
-
-#[inline]
-fn tens_digits(tens: &ResistorColor, digits: &ResistorColor) -> Result<f32, ResistorError> {
-    let tens = match tens.as_digit() {
-        Some(s) => { s }
-        None => {
-            Err(ResistorError::custom(format!("{} is not a valid tens digit", tens)))?
-        }
-    };
-    let digits = match digits.as_digit() {
-        Some(s) => { s }
-        None => {
-            Err(ResistorError::custom(format!("{} is not a valid digit", digits)))?
-        }
-    };
-    Ok(digits + tens * 10.0)
-}
-
-#[inline]
-fn add_hundreds_digit(base: f32, digits: &ResistorColor) -> Result<f32, ResistorError> {
-    let digits = match digits.as_digit() {
-        Some(s) => { s }
-        None => {
-            Err(ResistorError::custom(format!("{} is not a valid hundreds digit", digits)))?
-        }
-    };
-    Ok(base + digits * 100.0)
-}
-
-#[inline]
-fn add_thousands_digit(base: f32, digits: &ResistorColor) -> Result<f32, ResistorError> {
-    let digits = match digits.as_digit() {
-        Some(s) => { s }
-        None => {
-            Err(ResistorError::custom(format!("{} is not a valid thousands digit", digits)))?
-        }
-    };
-    Ok(base + digits * 1000.0)
-}
-
-#[inline]
-fn mul_multiplier(base: f32, multiplier: &ResistorColor) -> Result<f32, ResistorError> {
-    let multiplier = match multiplier.as_multiplier() {
-        Some(s) => { s }
-        None => {
-            Err(ResistorError::custom(format!("{} is not a valid multiplier", multiplier)))?
-        }
-    };
-    Ok(base * multiplier)
 }

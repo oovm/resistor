@@ -1,31 +1,21 @@
-Rust Template Project
-=====================
+Resistor
+========
 
-Rust template project for monorepo
+resistor is a library for calculating the resistance of a resistor based on the color bands.
 
-## Change the initial commit
 
-```shell
-git commit --amend --message "🎂 Project initialized!" --date "2012-12-12"
+```rust
+#[test]
+fn test_red4() {
+    let resistor = ResistorBuilder::FourBand {
+        first: ResistorColor::Red,
+        second: ResistorColor::Red,
+        multiplier: ResistorColor::Red,
+        tolerance: ResistorColor::Red,
+    }
+    .build()
+    .unwrap();
+    assert_eq!(resistor.resistance, 2200.0);
+    assert_eq!(resistor.to_string(), "Resistor(2200Ω ± 2%)");
+}
 ```
-
-## Emoji Comment
-
-| Emoji  | Meaning                      |  
-|--------|------------------------------|  
-| 🎂     | Project initialized!         |  
-| 🎉     | Release new version          |  
-| 🧪🔮   | Experimental code            |   
-| 🔧🐛🐞 | Bug fix                      |  
-| 🔒     | Security fix                 |  
-| 🐣🐤🐥 | Add feature                  |  
-| 📝🎀   | Documentation                |  
-| 🚀     | Performance improve!         |  
-| 🚧     | Work in progress             |  
-| 🚨     | Test coverage improve!       |  
-| 🚥     | CI improve!                  |  
-| 🔥     | Remove code or files         |
-| 🧹     | Code refactor                |
-| 📈     | Add analytics or branch code |
-| 🤖     | Automation fix               |
-| 📦     | Update dependencies          |
